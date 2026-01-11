@@ -1,0 +1,53 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+
+  /* Dark Theme (Default) Variables */
+  --bg-color: #242424;
+  --text-color: rgba(255, 255, 255, 0.87);
+  --month-bg: #333;
+  --header-bg: #444;
+  --border-color: #555;
+  --weekend-bg: #888;
+  --weekday-bg: white;
+  --empty-bg: transparent;
+  --legend-border: #444;
+  --holiday-bg: #9c27b0;
+}
+
+[data-theme="light"] {
+  --bg-color: #ffffff;
+  --text-color: #213547;
+  --month-bg: #f5f5f5;
+  --header-bg: #e0e0e0;
+  --border-color: #ccc;
+  --weekend-bg: #ccc;
+  /* Slightly darker for contrast against white bg if needed, or stick to gray */
+  --weekday-bg: #fff;
+  --empty-bg: transparent;
+  --legend-border: #ccc;
+  --holiday-bg: #BA68C8;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
