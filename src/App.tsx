@@ -5,11 +5,17 @@ import { LegendControls } from './components/LegendControls';
 import { CalendarGrid } from './components/CalendarGrid';
 import { Legend } from './components/Legend';
 import { AddLabelModal } from './components/AddLabelModal';
+import { useAuth } from './contexts/AuthContext';
+import { db } from './firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import Swal from 'sweetalert2';
 
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('calendar_theme') as 'dark' | 'light') || 'light';
   });
+  const { user } = useAuth();
+  const [isSaving, setIsSaving] = useState(false);
   const year = 2026;
 
   useEffect(() => {
@@ -49,6 +55,61 @@ function App() {
   useEffect(() => {
     localStorage.setItem('calendar_assignments', JSON.stringify(dayAssignments));
   }, [dayAssignments]);
+
+  const handleCloudSave = async () => {
+    if (!user) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Not Logged In',
+        text: 'Please login to save your data to the cloud.',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        categories,
+        dayAssignments,
+        lastUpdated: new Date().toISOString()
+      });
+      Swal.fire({
+        icon: 'success',
+        title: 'Saved!',
+        text: 'Your calendar has been saved to the cloud.',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error("Error saving to cloud:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Save Failed',
+        text: 'There was an error saving your data. Please try again.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    const loadCloudData = async () => {
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.categories) setCategories(data.categories);
+            if (data.dayAssignments) setDayAssignments(data.dayAssignments);
+          }
+        } catch (error) {
+          console.error("Error loading cloud data:", error);
+        }
+      }
+    };
+    loadCloudData();
+  }, [user]);
 
   const addCategory = (name: string, color: string) => {
     const newCategory = {
@@ -174,7 +235,13 @@ function App() {
         categories={categories}
       />
 
-      <Header year={year} theme={theme} toggleTheme={toggleTheme} />
+      <Header
+        year={year}
+        theme={theme}
+        toggleTheme={toggleTheme}
+        onCloudSave={handleCloudSave}
+        isSaving={isSaving}
+      />
 
       <LegendControls
         categories={categories}
