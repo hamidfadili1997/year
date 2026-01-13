@@ -8,7 +8,7 @@ import { AddLabelModal } from './components/AddLabelModal';
 
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('calendar_theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('calendar_theme') as 'dark' | 'light') || 'light';
   });
   const year = 2026;
 

@@ -67,8 +67,8 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
 
                             // Collect all colors
                             activeCustomCats.forEach(cat => colors.push(cat.color));
-                            if (holidayName) colors.push('#7c3aed'); // Holiday Purple
-                            if (weekend) colors.push('rgba(128, 128, 128, 0.2)'); // Weekend Gray
+                            if (holidayName) colors.push('#BA68C8'); // Holiday Purple
+                            if (weekend) colors.push('#ccc'); // Weekend Gray
 
                             // Handle Tooltip
                             if (holidayName) tooltip += `: ${holidayName}`;
