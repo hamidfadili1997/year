@@ -82,12 +82,14 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({
                             if (colors.length === 1) {
                                 style.backgroundColor = colors[0];
                             } else if (colors.length > 1) {
-                                // Create a striped gradient
-                                const step = 100 / colors.length;
-                                const gradientParts = colors.map((col, idx) => {
-                                    return `${col} ${idx * step}%, ${col} ${(idx + 1) * step}%`;
+                                // Create a repeating striped pattern
+                                const stripeWidth = 6; // px
+                                const gradientParts: string[] = [];
+                                colors.forEach((col, idx) => {
+                                    gradientParts.push(`${col} ${idx * stripeWidth}px`);
+                                    gradientParts.push(`${col} ${(idx + 1) * stripeWidth}px`);
                                 });
-                                style.background = `linear-gradient(to bottom right, ${gradientParts.join(', ')})`;
+                                style.background = `repeating-linear-gradient(45deg, ${gradientParts.join(', ')})`;
                             } else {
                                 className += weekend ? ' weekend' : ' weekday';
                             }
