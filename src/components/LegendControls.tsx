@@ -65,7 +65,7 @@ export const LegendControls: React.FC<LegendControlsProps> = ({
         <div className="custom-legend-controls">
             <h3>Manage Custom Legend</h3>
             <p style={{ fontSize: '0.9em', color: 'var(--text-color)', opacity: 0.8, marginTop: '-10px', marginBottom: '15px' }}>
-                Tip: Right-click any day on the calendar to quickly add a label!
+                Tip: Right-click (or long-press on touch) any day to see its details and add labels.
             </p>
             <div className="add-category">
                 <input
