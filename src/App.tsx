@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css'
 import { Header } from './components/Header';
 import { LegendControls } from './components/LegendControls';
 import { CalendarGrid } from './components/CalendarGrid';
 import { Legend } from './components/Legend';
-import { AddLabelModal } from './components/AddLabelModal';
+import { DaySheet } from './components/DaySheet';
 import { useAuth } from './contexts/AuthContext';
 import { db } from './firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -161,45 +161,53 @@ function App() {
     });
   };
 
-  // Modal State
-  const [showModal, setShowModal] = useState(false);
+  // Day detail sheet state
+  const [showSheet, setShowSheet] = useState(false);
   const [activeDate, setActiveDate] = useState<{ monthIndex: number, day: number } | null>(null);
+  const activeKey = activeDate ? `${activeDate.monthIndex}-${activeDate.day}` : null;
 
-  const handleRightClick = (e: React.MouseEvent, monthIndex: number, day: number) => {
-    e.preventDefault(); // Prevent default browser context menu
+  const handleDayInspect = (monthIndex: number, day: number) => {
     setActiveDate({ monthIndex, day });
-    setShowModal(true);
+    setShowSheet(true);
   };
 
-  const handleSaveModal = (name: string, color: string, existingId?: string) => {
-    if (!activeDate) return;
+  const assignToActiveDay = (categoryId: string) => {
+    if (!activeKey) return;
+    setDayAssignments(prev => {
+      const existing = prev[activeKey] || [];
+      if (existing.includes(categoryId)) return prev;
+      return { ...prev, [activeKey]: [...existing, categoryId] };
+    });
+  };
 
-    let idToAssign = existingId;
+  const handleSheetCreate = (name: string, color: string) => {
+    const newCategory = { id: crypto.randomUUID(), name, color };
+    setCategories(prev => [...prev, newCategory]);
+    assignToActiveDay(newCategory.id);
+  };
 
-    if (!idToAssign) {
-      if (!name) return; // Name required for new category
-      const newCategory = {
-        id: crypto.randomUUID(),
-        name,
-        color,
-      };
-      setCategories([...categories, newCategory]);
-      idToAssign = newCategory.id;
-    }
+  const handleSheetRemove = (categoryId: string) => {
+    if (!activeKey) return;
+    setDayAssignments(prev => {
+      const existing = prev[activeKey] || [];
+      const updated = existing.filter(id => id !== categoryId);
+      const next = { ...prev };
+      if (updated.length === 0) {
+        delete next[activeKey];
+      } else {
+        next[activeKey] = updated;
+      }
+      return next;
+    });
+  };
 
-    if (idToAssign) {
-      const key = `${activeDate.monthIndex}-${activeDate.day}`;
-      setDayAssignments(prev => {
-        const existing = prev[key] || [];
-        if (existing.includes(idToAssign!)) return prev;
-        return {
-          ...prev,
-          [key]: [...existing, idToAssign!]
-        };
-      });
-    }
-
-    setShowModal(false);
+  const handleSheetClearAll = () => {
+    if (!activeKey) return;
+    setDayAssignments(prev => {
+      const next = { ...prev };
+      delete next[activeKey];
+      return next;
+    });
   };
 
   const removeCategory = (id: string) => {
@@ -228,12 +236,20 @@ function App() {
 
   return (
     <div className="calendar-container">
-      <AddLabelModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        onSave={handleSaveModal}
-        categories={categories}
-      />
+      {showSheet && activeDate && activeKey && (
+        <DaySheet
+          key={activeKey}
+          year={year}
+          date={activeDate}
+          categories={categories}
+          assignedIds={dayAssignments[activeKey] || []}
+          onClose={() => setShowSheet(false)}
+          onAddExisting={assignToActiveDay}
+          onCreate={handleSheetCreate}
+          onRemove={handleSheetRemove}
+          onClearAll={handleSheetClearAll}
+        />
+      )}
 
       <Header
         year={year}
@@ -256,7 +272,7 @@ function App() {
         categories={categories}
         dayAssignments={dayAssignments}
         onDayClick={handleDayClick}
-        onDayContextMenu={handleRightClick}
+        onDayInspect={handleDayInspect}
       />
 
       <Legend categories={categories} />

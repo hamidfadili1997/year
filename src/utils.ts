@@ -3,6 +3,11 @@ export const months = [
     'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+export const monthsShort = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
 export const getDaysInMonth = (monthIndex: number, year: number) => {
     return new Date(year, monthIndex + 1, 0).getDate();
 };
