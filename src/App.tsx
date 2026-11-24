@@ -1,267 +1,213 @@
-import React, { useState, useEffect } from 'react';
-import './App.css'
-import { Header } from './components/Header';
-import { LegendControls } from './components/LegendControls';
-import { CalendarGrid } from './components/CalendarGrid';
-import { Legend } from './components/Legend';
-import { AddLabelModal } from './components/AddLabelModal';
-import { useAuth } from './contexts/AuthContext';
-import { db } from './firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import Swal from 'sweetalert2';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import './App.css';
+import { TopBar } from './components/TopBar';
+import { LabelPanel } from './components/LabelPanel';
+import { YearGrid } from './components/YearGrid';
+import { DaySheet } from './components/DaySheet';
+import { LabelEditor } from './components/LabelEditor';
+import { usePlanner } from './hooks/usePlanner';
+import { MIN_YEAR, dayKey, hasMovableHolidays, nextColor } from './utils';
+
+type Theme = 'dark' | 'light';
+
+const currentYear = () => Math.max(new Date().getFullYear(), MIN_YEAR);
+
+const yearFromHash = () => {
+    const y = parseInt(window.location.hash.slice(1), 10);
+    return y >= MIN_YEAR && y <= 9999 ? y : null;
+};
+
+const isPhone = () => window.matchMedia('(max-width: 760px)').matches;
 
 function App() {
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('calendar_theme') as 'dark' | 'light') || 'light';
-  });
-  const { user } = useAuth();
-  const [isSaving, setIsSaving] = useState(false);
-  const year = 2026;
+    const planner = usePlanner();
+    const { labels, assignments } = planner;
 
-  useEffect(() => {
-    document.body.setAttribute('data-theme', theme);
-    localStorage.setItem('calendar_theme', theme);
-  }, [theme]);
+    // ---- Theme ----
+    const [theme, setTheme] = useState<Theme>(() => {
+        const saved = localStorage.getItem('calendar_theme');
+        if (saved === 'dark' || saved === 'light') return saved;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    });
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('calendar_theme', theme);
+    }, [theme]);
 
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; color: string }>>(() => {
-    const saved = localStorage.getItem('calendar_categories');
-    return saved ? JSON.parse(saved) : [];
-  });
+    // ---- Year (kept in the URL hash so a reload or shared link keeps it) ----
+    const [year, setYear] = useState(() => yearFromHash() ?? currentYear());
 
-  useEffect(() => {
-    localStorage.setItem('calendar_categories', JSON.stringify(categories));
-  }, [categories]);
+    useEffect(() => {
+        window.history.replaceState(null, '', `#${year}`);
+    }, [year]);
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+    useEffect(() => {
+        const onHash = () => {
+            const y = yearFromHash();
+            if (y) setYear(y);
+        };
+        window.addEventListener('hashchange', onHash);
+        return () => window.removeEventListener('hashchange', onHash);
+    }, []);
 
-  const [dayAssignments, setDayAssignments] = useState<Record<string, string[]>>(() => {
-    const saved = localStorage.getItem('calendar_assignments');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Migrate old string values to arrays if necessary
-      const migrated: Record<string, string[]> = {};
-      Object.keys(parsed).forEach(key => {
-        migrated[key] = Array.isArray(parsed[key]) ? parsed[key] : [parsed[key]];
-      });
-      return migrated;
-    }
-    return {};
-  });
+    // Bumped to scroll the current month into view. On phones the year is a long
+    // list, so start at the current month instead of January.
+    const [todayTick, setTodayTick] = useState(() => (isPhone() && year === currentYear() ? 1 : 0));
 
-  useEffect(() => {
-    localStorage.setItem('calendar_assignments', JSON.stringify(dayAssignments));
-  }, [dayAssignments]);
-
-  const handleCloudSave = async () => {
-    if (!user) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Not Logged In',
-        text: 'Please login to save your data to the cloud.',
-      });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await setDoc(doc(db, 'users', user.uid), {
-        categories,
-        dayAssignments,
-        lastUpdated: new Date().toISOString()
-      });
-      Swal.fire({
-        icon: 'success',
-        title: 'Saved!',
-        text: 'Your calendar has been saved to the cloud.',
-        timer: 1500,
-        showConfirmButton: false
-      });
-    } catch (error) {
-      console.error("Error saving to cloud:", error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Save Failed',
-        text: 'There was an error saving your data. Please try again.',
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  useEffect(() => {
-    const loadCloudData = async () => {
-      if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.categories) setCategories(data.categories);
-            if (data.dayAssignments) setDayAssignments(data.dayAssignments);
-          }
-        } catch (error) {
-          console.error("Error loading cloud data:", error);
-        }
-      }
-    };
-    loadCloudData();
-  }, [user]);
-
-  const addCategory = (name: string, color: string) => {
-    const newCategory = {
-      id: crypto.randomUUID(),
-      name,
-      color,
-    };
-    setCategories([...categories, newCategory]);
-    // Auto-select the new category
-    setSelectedCategoryId(newCategory.id);
-  };
-
-  const handleDayClick = (monthIndex: number, day: number) => {
-    const key = `${monthIndex}-${day}`;
-    const currentCategoryIds = dayAssignments[key] || [];
-
-    // 1. Eraser mode (no category selected) - Clear ALL
-    if (!selectedCategoryId) {
-      if (currentCategoryIds.length > 0) {
-        setDayAssignments(prev => {
-          const next = { ...prev };
-          delete next[key];
-          return next;
+    useEffect(() => {
+        if (!todayTick) return;
+        document.getElementById(`month-${new Date().getMonth()}`)?.scrollIntoView({
+            block: isPhone() ? 'start' : 'nearest',
+            behavior: todayTick === 1 ? 'auto' : 'smooth',
         });
-      }
-      return;
-    }
+    }, [todayTick]);
 
-    // 2. Toggling selection
-    setDayAssignments(prev => {
-      const existing = prev[key] || [];
-      if (existing.includes(selectedCategoryId)) {
-        // Remove this specific category
-        const updated = existing.filter(id => id !== selectedCategoryId);
-        const next = { ...prev };
-        if (updated.length === 0) {
-          delete next[key];
-        } else {
-          next[key] = updated;
-        }
-        return next;
-      } else {
-        // Add this specific category
-        return {
-          ...prev,
-          [key]: [...existing, selectedCategoryId]
+    const goToday = () => {
+        setYear(currentYear());
+        setTodayTick(t => t + 2);
+    };
+
+    // ---- Interaction state ----
+    const [activeLabelId, setActiveLabelId] = useState<string | null>(null);
+    const [openDay, setOpenDay] = useState<{ monthIndex: number; day: number } | null>(null);
+    const [editor, setEditor] = useState<{ labelId?: string } | null>(null);
+
+    const activeLabel = labels.find(l => l.id === activeLabelId) ?? null;
+    const editingLabel = editor?.labelId ? labels.find(l => l.id === editor.labelId) : undefined;
+
+    useEffect(() => {
+        if (!activeLabel) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && !document.querySelector('dialog[open]')) setActiveLabelId(null);
         };
-      }
-    });
-  };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [activeLabel]);
 
-  // Modal State
-  const [showModal, setShowModal] = useState(false);
-  const [activeDate, setActiveDate] = useState<{ monthIndex: number, day: number } | null>(null);
+    const { setDayLabel } = planner;
+    const paint = useCallback(
+        (key: string, on: boolean) => {
+            if (activeLabelId) setDayLabel(key, activeLabelId, on);
+        },
+        [activeLabelId, setDayLabel]
+    );
 
-  const handleRightClick = (e: React.MouseEvent, monthIndex: number, day: number) => {
-    e.preventDefault(); // Prevent default browser context menu
-    setActiveDate({ monthIndex, day });
-    setShowModal(true);
-  };
-
-  const handleSaveModal = (name: string, color: string, existingId?: string) => {
-    if (!activeDate) return;
-
-    let idToAssign = existingId;
-
-    if (!idToAssign) {
-      if (!name) return; // Name required for new category
-      const newCategory = {
-        id: crypto.randomUUID(),
-        name,
-        color,
-      };
-      setCategories([...categories, newCategory]);
-      idToAssign = newCategory.id;
-    }
-
-    if (idToAssign) {
-      const key = `${activeDate.monthIndex}-${activeDate.day}`;
-      setDayAssignments(prev => {
-        const existing = prev[key] || [];
-        if (existing.includes(idToAssign!)) return prev;
-        return {
-          ...prev,
-          [key]: [...existing, idToAssign!]
-        };
-      });
-    }
-
-    setShowModal(false);
-  };
-
-  const removeCategory = (id: string) => {
-    // 1. Remove from categories list
-    setCategories(prev => prev.filter(c => c.id !== id));
-
-    // 2. Clear all day assignments using this category
-    setDayAssignments(prev => {
-      const next = { ...prev };
-      Object.keys(next).forEach(key => {
-        if (next[key].includes(id)) {
-          next[key] = next[key].filter(catId => catId !== id);
-          if (next[key].length === 0) {
-            delete next[key];
-          }
+    const { yearCounts, totalCounts } = useMemo(() => {
+        const yearCounts: Record<string, number> = {};
+        const totalCounts: Record<string, number> = {};
+        const prefix = `${year}-`;
+        for (const [key, ids] of Object.entries(assignments)) {
+            for (const id of ids) {
+                totalCounts[id] = (totalCounts[id] ?? 0) + 1;
+                if (key.startsWith(prefix)) yearCounts[id] = (yearCounts[id] ?? 0) + 1;
+            }
         }
-      });
-      return next;
-    });
+        return { yearCounts, totalCounts };
+    }, [assignments, year]);
 
-    // 3. Deselect if it was selected
-    if (selectedCategoryId === id) {
-      setSelectedCategoryId(null);
-    }
-  };
+    const usedColors = labels.map(l => l.color);
+    const openKey = openDay ? dayKey(year, openDay.monthIndex, openDay.day) : null;
 
-  return (
-    <div className="calendar-container">
-      <AddLabelModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        onSave={handleSaveModal}
-        categories={categories}
-      />
+    return (
+        <div className="app">
+            <TopBar
+                year={year}
+                canGoBack={year > MIN_YEAR}
+                onPrevYear={() => setYear(y => Math.max(MIN_YEAR, y - 1))}
+                onNextYear={() => setYear(y => y + 1)}
+                onToday={goToday}
+                theme={theme}
+                onToggleTheme={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+                sync={planner.sync}
+                onRetrySync={planner.retrySync}
+            />
 
-      <Header
-        year={year}
-        theme={theme}
-        toggleTheme={toggleTheme}
-        onCloudSave={handleCloudSave}
-        isSaving={isSaving}
-      />
+            <div className="layout">
+                <LabelPanel
+                    year={year}
+                    labels={labels}
+                    counts={yearCounts}
+                    activeLabelId={activeLabel?.id ?? null}
+                    onSelect={setActiveLabelId}
+                    onEdit={labelId => setEditor({ labelId })}
+                    onCreate={() => setEditor({})}
+                    onQuickCreate={name => setActiveLabelId(planner.addLabel(name, nextColor(usedColors)))}
+                />
 
-      <LegendControls
-        categories={categories}
-        selectedCategoryId={selectedCategoryId}
-        onSelectCategory={setSelectedCategoryId}
-        onAddCategory={addCategory}
-        onRemoveCategory={removeCategory}
-      />
+                <main className="main">
+                    <div className="key" aria-label="Key">
+                        <span><i className="key-box weekend" />Weekend</span>
+                        <span><i className="key-box holiday">1</i>Public holiday</span>
+                        <span><i className="key-box today" />Today</span>
+                        {!hasMovableHolidays(year) && (
+                            <span className="key-note">Eid and other lunar holiday dates aren’t available for {year} yet.</span>
+                        )}
+                    </div>
 
-      <CalendarGrid
-        year={year}
-        categories={categories}
-        dayAssignments={dayAssignments}
-        onDayClick={handleDayClick}
-        onDayContextMenu={handleRightClick}
-      />
+                    <YearGrid
+                        year={year}
+                        labels={labels}
+                        assignments={assignments}
+                        activeLabelId={activeLabel?.id ?? null}
+                        onPaint={paint}
+                        onOpenDay={(monthIndex, day) => setOpenDay({ monthIndex, day })}
+                    />
+                </main>
+            </div>
 
-      <Legend categories={categories} />
-    </div>
-  )
+            {activeLabel && (
+                <div className="paintbar" role="status">
+                    <span className="swatch" style={{ backgroundColor: activeLabel.color }} />
+                    <span className="paintbar-text">
+                        <strong>{activeLabel.name}</strong>
+                        <span className="touch-only"> — tap days</span>
+                        <span className="mouse-only"> — click or drag across days</span>
+                    </span>
+                    <button type="button" className="paintbar-btn" onClick={() => setEditor({ labelId: activeLabel.id })}>
+                        Edit
+                    </button>
+                    <button type="button" className="paintbar-btn solid" onClick={() => setActiveLabelId(null)}>
+                        Done
+                    </button>
+                </div>
+            )}
+
+            {openDay && openKey && (
+                <DaySheet
+                    key={openKey}
+                    year={year}
+                    monthIndex={openDay.monthIndex}
+                    day={openDay.day}
+                    labels={labels}
+                    assignedIds={assignments[openKey] ?? []}
+                    onToggle={(labelId, on) => setDayLabel(openKey, labelId, on)}
+                    onCreate={(name, color) => setDayLabel(openKey, planner.addLabel(name, color), true)}
+                    onClear={() => planner.clearDay(openKey)}
+                    onClose={() => setOpenDay(null)}
+                />
+            )}
+
+            {editor && (
+                <LabelEditor
+                    key={editor.labelId ?? 'new'}
+                    label={editingLabel}
+                    usedColors={usedColors}
+                    dayCount={editingLabel ? totalCounts[editingLabel.id] ?? 0 : 0}
+                    onSave={(name, color) => {
+                        if (editingLabel) planner.updateLabel(editingLabel.id, name, color);
+                        else setActiveLabelId(planner.addLabel(name, color));
+                        setEditor(null);
+                    }}
+                    onDelete={() => {
+                        if (editingLabel) planner.removeLabel(editingLabel.id);
+                        setEditor(null);
+                    }}
+                    onClose={() => setEditor(null)}
+                />
+            )}
+        </div>
+    );
 }
 
-export default App
+export default App;

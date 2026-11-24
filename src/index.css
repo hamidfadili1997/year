@@ -1,53 +1,74 @@
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.45;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+  color-scheme: light;
 
-  /* Dark Theme (Default) Variables */
-  --bg-color: #242424;
-  --text-color: rgba(255, 255, 255, 0.87);
-  --month-bg: #333;
-  --header-bg: #444;
-  --border-color: #555;
-  --weekend-bg: #888;
-  --weekday-bg: white;
-  --empty-bg: transparent;
-  --legend-border: #444;
-  --holiday-bg: #9c27b0;
+  --bg: #f5f3ee;
+  --surface: #ffffff;
+  --surface-2: #efece5;
+  --ink: #1f1d1a;
+  --muted: #6c675e;
+  --line: #e1dcd1;
+  --accent: #1d6b59;
+  --accent-ink: #ffffff;
+  --weekend: #f1eee8;
+  --holiday: #c0362c;
+  --holiday-soft: #fbe6e2;
+  --danger: #c0362c;
+  --shadow: 0 10px 30px rgba(40, 30, 10, 0.16);
 }
 
-[data-theme="light"] {
-  --bg-color: #ffffff;
-  --text-color: #213547;
-  --month-bg: #f5f5f5;
-  --header-bg: #e0e0e0;
-  --border-color: #ccc;
-  --weekend-bg: #ccc;
-  /* Slightly darker for contrast against white bg if needed, or stick to gray */
-  --weekday-bg: #fff;
-  --empty-bg: transparent;
-  --legend-border: #ccc;
-  --holiday-bg: #BA68C8;
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #161513;
+  --surface: #201e1b;
+  --surface-2: #2b2925;
+  --ink: #ece8e0;
+  --muted: #a29c91;
+  --line: #36332e;
+  --accent: #62c7ab;
+  --accent-ink: #0e1f1a;
+  --weekend: #2a2824;
+  --holiday: #ff8d7e;
+  --holiday-soft: #40231f;
+  --danger: #ff8d7e;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  transition: background-color 0.3s, color 0.3s;
+  background-color: var(--bg);
+  color: var(--ink);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+h1,
+h2,
+p,
+ul {
+  margin: 0;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
 }
