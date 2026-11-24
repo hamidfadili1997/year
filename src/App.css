@@ -470,7 +470,6 @@
 
 .day.weekend {
   background: var(--weekend);
-  color: var(--muted);
 }
 
 .day.holiday {
