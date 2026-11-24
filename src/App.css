@@ -384,62 +384,88 @@
   box-shadow: inset 0 0 0 2px var(--ink);
 }
 
-/* ---------- Year grid ---------- */
+/* ---------- Year grid ----------
+   One cell per day, placed by --m (month, 0-based) and --d (day).
+   Desktop: months are rows, days are columns. Phones: transposed (see below).
+   Either way the whole year fits on one screen. */
 
-.months {
+.year-grid {
+  --cell-h: clamp(26px, calc((100dvh - 190px) / 13), 46px);
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
-  gap: 14px;
-}
-
-.month {
-  padding: 12px;
+  grid-template-columns: auto repeat(31, minmax(0, 1fr));
+  grid-auto-rows: var(--cell-h);
+  gap: 2px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
-  scroll-margin: 72px 0 150px;
 }
 
-.month h2 {
-  margin: 0 0 6px 6px;
-  font-size: 0.95rem;
-  font-weight: 650;
-}
-
-.month.current h2 {
-  color: var(--accent);
-}
-
-.week-head,
-.days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-}
-
-.week-head span {
-  padding: 2px 0 4px;
+.day-head,
+.month-head {
+  display: flex;
+  align-items: center;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-head {
+  grid-row: 1;
+  grid-column: calc(var(--d) + 1);
+  justify-content: center;
+}
+
+.month-head {
+  grid-row: calc(var(--m) + 2);
+  grid-column: 1;
+  padding-right: 10px;
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.month-head.current {
+  color: var(--accent);
+  font-weight: 750;
+}
+
+.month-short {
+  display: none;
 }
 
 .day {
   position: relative;
   display: grid;
   place-items: center;
-  aspect-ratio: 1;
+  grid-row: calc(var(--m) + 2);
+  grid-column: calc(var(--d) + 1);
+  min-width: 0;
   padding: 0;
   border: 0;
-  border-radius: 8px;
-  background: transparent;
+  border-radius: 6px;
+  background: var(--bg);
   color: var(--ink);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 1150px) {
+  .month-full {
+    display: none;
+  }
+
+  .month-short {
+    display: inline;
+  }
+
+  .day {
+    border-radius: 4px;
+    font-size: 0.62rem;
+  }
 }
 
 .day.weekend {
@@ -458,11 +484,11 @@
 }
 
 .day.multi .day-num {
-  min-width: 1.7em;
+  min-width: 1.6em;
   border-radius: 999px;
   background: var(--surface);
   color: var(--ink);
-  line-height: 1.7em;
+  line-height: 1.6em;
   text-align: center;
 }
 
@@ -473,10 +499,10 @@
 
 .day-dot {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 7px;
-  height: 7px;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--holiday);
   box-shadow: 0 0 0 1.5px var(--surface);
@@ -498,12 +524,12 @@
   }
 }
 
-.months.painting {
+.year-grid.painting {
   user-select: none;
   -webkit-user-select: none;
 }
 
-.months.painting .day {
+.year-grid.painting .day {
   cursor: cell;
 }
 
@@ -755,7 +781,12 @@ dialog.modal::backdrop {
 
   .layout {
     display: block;
-    padding: 12px 12px calc(150px + env(safe-area-inset-bottom));
+    padding: 8px 8px calc(74px + env(safe-area-inset-bottom));
+  }
+
+  /* Leave room to scroll the last rows clear of the paint bar. */
+  .is-painting .layout {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom));
   }
 
   /* Labels become a bottom bar within thumb reach. */
@@ -836,18 +867,49 @@ dialog.modal::backdrop {
     display: none;
   }
 
-  .months {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 10px;
+  /* Transposed year: 12 month columns, 31 day rows. */
+  .year-grid {
+    --cell-h: clamp(14px, calc((100dvh - 224px - env(safe-area-inset-bottom)) / 32), 26px);
+    gap: 1px;
+    grid-template-columns: auto repeat(12, minmax(0, 1fr));
+    padding: 6px;
+    border-radius: 12px;
   }
 
-  .month h2 {
-    font-size: 1.05rem;
+  .day-head {
+    grid-row: calc(var(--d) + 1);
+    grid-column: 1;
+    justify-content: flex-end;
+    padding-right: 4px;
+    font-size: 0.62rem;
+  }
+
+  .month-head {
+    grid-row: 1;
+    grid-column: calc(var(--m) + 2);
+    justify-content: center;
+    padding: 0;
+    font-size: 0.68rem;
   }
 
   .day {
-    border-radius: 10px;
-    font-size: 0.95rem;
+    grid-row: calc(var(--d) + 1);
+    grid-column: calc(var(--m) + 2);
+  }
+
+  .day-num {
+    opacity: 0.75;
+  }
+
+  .day.multi .day-num {
+    background: none;
+    color: inherit;
+    line-height: inherit;
+  }
+
+  .key {
+    margin-bottom: 8px;
+    font-size: 0.75rem;
   }
 
   .paintbar {

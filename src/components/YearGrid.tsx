@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import type { Assignments, Label } from '../types';
 import {
-    MONTHS, WEEKDAYS, dayKey, getDaysInMonth, getHolidayName, getMonthOffset, isWeekend, textOn,
+    MONTHS, dayKey, getDaysInMonth, getHolidayName, isWeekend, textOn,
 } from '../utils';
 
 interface YearGridProps {
@@ -47,21 +47,24 @@ export const YearGrid: React.FC<YearGridProps> = ({ year, labels, assignments, a
 
     const has = (key: string) => !!activeLabelId && (assignments[key]?.includes(activeLabelId) ?? false);
 
+    const at = (vars: { m?: number; d?: number }, extra: React.CSSProperties = {}) =>
+        ({ ...extra, '--m': vars.m, '--d': vars.d }) as React.CSSProperties;
+
     return (
-        <div className={`months${activeLabelId ? ' painting' : ''}`}>
+        <div className={`year-grid${activeLabelId ? ' painting' : ''}`}>
+            {Array.from({ length: 31 }, (_, i) => (
+                <span key={`d-${i}`} className="day-head" style={at({ d: i + 1 })} aria-hidden="true">{i + 1}</span>
+            ))}
             {MONTHS.map((month, m) => {
                 const days = getDaysInMonth(year, m);
-                const offset = getMonthOffset(year, m);
                 const isCurrent = now.getFullYear() === year && now.getMonth() === m;
 
                 return (
-                    <section key={month} id={`month-${m}`} className={`month${isCurrent ? ' current' : ''}`} aria-label={`${month} ${year}`}>
-                        <h2>{month}</h2>
-                        <div className="week-head" aria-hidden="true">
-                            {WEEKDAYS.map(w => <span key={w}>{w[0]}</span>)}
-                        </div>
-                        <div className="days">
-                            {Array.from({ length: offset }, (_, i) => <span key={`pad-${i}`} />)}
+                    <React.Fragment key={month}>
+                        <span className={`month-head${isCurrent ? ' current' : ''}`} style={at({ m })} title={`${month} ${year}`}>
+                            <span className="month-full">{month}</span>
+                            <span className="month-short" aria-hidden="true">{month.slice(0, 3)}</span>
+                        </span>
                             {Array.from({ length: days }, (_, i) => {
                                 const d = i + 1;
                                 const key = dayKey(year, m, d);
@@ -91,7 +94,7 @@ export const YearGrid: React.FC<YearGridProps> = ({ year, labels, assignments, a
                                         key={d}
                                         type="button"
                                         className={className}
-                                        style={fillFor(dayLabels.map(l => l.color))}
+                                        style={at({ m, d }, fillFor(dayLabels.map(l => l.color)))}
                                         title={description}
                                         aria-label={description}
                                         onPointerDown={e => {
@@ -119,8 +122,7 @@ export const YearGrid: React.FC<YearGridProps> = ({ year, labels, assignments, a
                                     </button>
                                 );
                             })}
-                        </div>
-                    </section>
+                    </React.Fragment>
                 );
             })}
         </div>

@@ -17,8 +17,6 @@ const yearFromHash = () => {
     return y >= MIN_YEAR && y <= 9999 ? y : null;
 };
 
-const isPhone = () => window.matchMedia('(max-width: 760px)').matches;
-
 function App() {
     const planner = usePlanner();
     const { labels, assignments } = planner;
@@ -51,21 +49,17 @@ function App() {
         return () => window.removeEventListener('hashchange', onHash);
     }, []);
 
-    // Bumped to scroll the current month into view. On phones the year is a long
-    // list, so start at the current month instead of January.
-    const [todayTick, setTodayTick] = useState(() => (isPhone() && year === currentYear() ? 1 : 0));
+    // Bumped by the Today button to bring today's cell into view.
+    const [todayTick, setTodayTick] = useState(0);
 
     useEffect(() => {
         if (!todayTick) return;
-        document.getElementById(`month-${new Date().getMonth()}`)?.scrollIntoView({
-            block: isPhone() ? 'start' : 'nearest',
-            behavior: todayTick === 1 ? 'auto' : 'smooth',
-        });
+        document.querySelector('.day.today')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }, [todayTick]);
 
     const goToday = () => {
         setYear(currentYear());
-        setTodayTick(t => t + 2);
+        setTodayTick(t => t + 1);
     };
 
     // ---- Interaction state ----
@@ -110,7 +104,7 @@ function App() {
     const openKey = openDay ? dayKey(year, openDay.monthIndex, openDay.day) : null;
 
     return (
-        <div className="app">
+        <div className={`app${activeLabel ? ' is-painting' : ''}`}>
             <TopBar
                 year={year}
                 canGoBack={year > MIN_YEAR}
